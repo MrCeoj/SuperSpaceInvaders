@@ -11,8 +11,6 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.Timer;
-import com.badlogic.gdx.utils.Timer.Task;
 import java.util.ArrayList;
 
 public class Space extends AbstractScreen {
@@ -38,7 +36,6 @@ public class Space extends AbstractScreen {
     Music bgm;
     Music shot;
     Music pup;
-    Timer.Task eventTask;
 
     ArrayList<Explosion> ex;
     ArrayList<BigExplosion> uex;
@@ -46,7 +43,6 @@ public class Space extends AbstractScreen {
     ArrayList<Alien> reds;
     ArrayList<ToughAlien> yels;
     ArrayList<Biggies> blues;
-    ArrayList<Bullet> alienshot;
     AlienJefe aboss;
     Player player;
     Destroyer destroyer;
@@ -70,14 +66,10 @@ public class Space extends AbstractScreen {
     float bluSpeed = 30;
 
     int direction_aliens = 1;
-    int hp = 5;
-    int puntaje = 0;
-
     float passed = 1;
     static final float PLAYER_SPEED = 400;
     static final float PURPLE_SPEED = 200;
     static final float BULLET_SPEED = 800;
-    static final float ALIENSHOT_SPEED = -600;
     static final float FALL_SPEED = -100;
     static final float DESTROY_SPEED = 1000;
     static final float willnotnotice = 10000;
@@ -90,7 +82,6 @@ public class Space extends AbstractScreen {
         reds = new ArrayList<>();
         yels = new ArrayList<>();
         blues = new ArrayList<>();
-        alienshot = new ArrayList<>();
         bullets = new ArrayList();
         ex = new ArrayList<>();
         uex = new ArrayList<>();
@@ -114,16 +105,6 @@ public class Space extends AbstractScreen {
                 aliveReds++;
             }
         }
-        eventTask = Timer.schedule(new Task() {
-            @Override
-            public void run() {
-                for (int i = 0; i < blues.size(); i++) {
-                    if (blues.get(i).isAlive) {
-                        alienshot.add(new Bullet(new Vector2(blues.get(i).getPosition().x, blues.get(i).getPosition().y + 10), alienShot, Color.GREEN, ALIENSHOT_SPEED));
-                    }
-                }
-            }
-        }, 0, 2);
 
         destroyer = new Destroyer(Vector2.Zero, blank, Color.GREEN, PURPLE_SPEED);
         bgm.play();
@@ -177,10 +158,6 @@ public class Space extends AbstractScreen {
             be.draw(batch, deltaTime);
         }
 
-        for (Bullet bullet : alienshot) {
-            bullet.draw(batch);
-        }
-
         if (aboss != null) {
             aboss.draw(batch);
         }
@@ -214,7 +191,6 @@ public class Space extends AbstractScreen {
         abossLogic(deltaTime);
         alienLogic(deltaTime);
         yelLogic(deltaTime);
-        alienShotLogic(deltaTime);
         blueLogic(deltaTime);
         bulletLogic(deltaTime);
         destroyerLogic(deltaTime);
@@ -224,13 +200,7 @@ public class Space extends AbstractScreen {
     void playerLogic(float deltaTime) {
         player.update(deltaTime);
 
-        for (int i = 0; i < alienshot.size(); i++) {
-            if (alienshot.get(i).sprite.getBoundingRectangle().overlaps(player.sprite.getBoundingRectangle()) && alienshot.get(i).isAlive) {
-                alienshot.get(i).isAlive = false;
-                gameover();
-            }
         }
-    }
 
     void alienLogic(float deltaTime) {
 
@@ -255,7 +225,6 @@ public class Space extends AbstractScreen {
                         reds.get(j).isAlive = false;
                         aliveReds--;
                         ex.add(new Explosion(reds.get(j).position.x, reds.get(j).position.y));
-                        puntaje += 100;
                         if (aliveReds <= 0) {
                             stage2 = true;
                             destroyer = new Destroyer(new Vector2(400, 600), dest, Color.GREEN, FALL_SPEED);
@@ -319,7 +288,6 @@ public class Space extends AbstractScreen {
                         yels.get(j).hitAlien();
                         if (!yels.get(j).isAlive) {
                             ex.add(new Explosion(yels.get(j).position.x, yels.get(j).position.y));
-                            puntaje += 300;
                             aliveYels--;
                         }
                         if (aliveYels <= 0) {
@@ -387,10 +355,9 @@ public class Space extends AbstractScreen {
                         blues.get(j).hitAlien();
                         if (!blues.get(j).isAlive) {
                             uex.add(new BigExplosion(blues.get(j).position.x, blues.get(j).position.y));
-                            puntaje += 1000;
                             aliveBlu--;
-
-                            g.cliente.enviar("Boss");
+                            boss();
+//                            g.cliente.enviar("Boss");
                         }
                         if (aliveBlu <= 0) {
                             g.setScreen(new Win(this.g));
@@ -450,17 +417,6 @@ public class Space extends AbstractScreen {
         }
     }
 
-    void alienShotLogic(float deltaTime) {
-        for (Bullet b : alienshot) {
-            b.update(deltaTime);
-        }
-        for (int i = 0; i < alienshot.size(); i++) {
-            if (!alienshot.get(i).isAlive) {
-                alienshot.remove(i);
-            }
-        }
-    }
-
     void abossLogic(float deltaTime) {
         if (aboss != null) {
 
@@ -470,7 +426,11 @@ public class Space extends AbstractScreen {
             }
 
             aboss.update(deltaTime, player.position.x);
-
+            
+            if(destroyer.sprite.getBoundingRectangle().overlaps(aboss.sprite.getBoundingRectangle())){
+                aboss.isAlive = false;
+            }
+            
             for (Bullet bullet : bullets) {
                 if (bullet.sprite.getBoundingRectangle().overlaps(aboss.sprite.getBoundingRectangle()) && bullet.isAlive) {
                     bullets.get(bullets.indexOf(bullet)).isAlive = false;
@@ -492,11 +452,6 @@ public class Space extends AbstractScreen {
     public void gameover() {
         g.setScreen(new GameOver(this.g));
         dispose();
-    }
-
-    @Override
-    public void hide() {
-        eventTask.cancel();
     }
 
     @Override
